@@ -1,10 +1,119 @@
 # PID – temperature tuning
 
-A simple Python (Streamlit) app to simulate and visualize PID controller tuning for a thermal process.
+A simple Python (Streamlit) app to **simulate and visualize** PID tuning for temperature control. It helps you see how controller gains affect heating behavior **before** touching real hardware.
+
+## The problem
+
+Many systems must hold a **target temperature** (setpoint): ovens, 3D printer beds, chemical reactors, HVAC zones, and more.
+
+You typically have:
+
+| Role | Meaning | Example |
+|------|---------|---------|
+| **Setpoint (SP)** | Desired temperature | 80 °C |
+| **Process variable (PV)** | Measured temperature | 72 °C |
+| **Control output (u)** | Actuator command | Heater power 0–100% |
+
+The difficulty: temperature **does not change instantly**. Heat spreads with **delay**, and the object has **inertia** (thermal mass). If you apply full power too long, you **overshoot** the target; if you stop too early, you **undershoot** and drift. A fixed “on/off at 80 °C” rule often **oscillates** or reacts too slowly.
+
+**Tuning** means choosing controller parameters so the system reaches SP **quickly**, with **acceptable overshoot**, and **little steady error** — without unsafe oscillation.
+
+## Solution space
+
+There are many ways to solve “hold this temperature.” This project sits in one corner of that space:
+
+| Approach | Idea | This project |
+|----------|------|----------------|
+| **Bang-bang (on/off)** | Full power on/off at a threshold | Not implemented (often oscillates around SP) |
+| **PID control** | Continuous u from error and its integral/derivative | **Yes** — core of the app |
+| **Model-based / MPC** | Use a detailed model to optimize u | Not implemented (more complex) |
+| **Manual tuning on hardware** | Change gains on the real plant | **Simulated first** — safer and faster for learning |
+| **Rule-based tuning (e.g. Ziegler–Nichols)** | Formulas from step tests | Not automated (you tune sliders by hand) |
+
+**Why PID?** It is widely used in industry, easy to explain, and maps well to a portfolio demo: a few knobs (**Kp**, **Ki**, **Kd**) with a clear plot.
+
+**Why simulation?** Real experiments cost time, energy, and risk equipment. A **software plant** (mathematical model) lets you run many “what if” scenarios in seconds. This repo is for **learning and visualization**, not for deploying to a factory line as-is.
+
+## What this app does (and does not do)
+
+**Does:**
+
+- Simulates a **closed loop**: PID → heater command → thermal model → temperature → back to PID.
+- Lets you set **SP**, initial temperature, **Kp / Ki / Kd**, and simulation length.
+- Plots **PV vs SP** and shows **overshoot** and **steady-state error**.
+
+**Does not:**
+
+- Connect to real sensors or actuators (no serial, MQTT, PLC).
+- Guarantee optimal or safe gains for your physical device.
+- Model every real effect (noise, sensor lag, multi-zone heat, cooling fans, etc.).
+
+Treat results as **qualitative guidance**: “more Kp → faster but more overshoot,” not as final production parameters.
+
+## How it works
+
+### Closed-loop idea
+
+Each time step (default **0.5 s**):
+
+1. Read current temperature **PV**.
+2. Compute error: **e = SP − PV**.
+3. PID computes **u** (0–100%, e.g. heater duty).
+4. The **thermal plant** updates PV from **u**.
+5. Repeat until the simulation ends.
+
+```
+  Setpoint (SP) ──►  PID  ──►  u  ──►  Thermal plant  ──►  Temperature (PV)
+       ▲                                                    │
+       └────────────────── feedback ─────────────────────────┘
+```
+
+### Modules
+
+| File | Role |
+|------|------|
+| `pid_controller.py` | PID with output limits and anti-windup (stops integral wind-up when u is saturated). |
+| `plant.py` | Simple thermal model: inertia (first order) + delay, plus ambient temperature. |
+| `simulation.py` | Runs the loop; returns time, temperature, setpoint, control, error. |
+| `app.py` | Streamlit UI, plot, and tuning metrics. |
+
+### PID parameters (what to turn)
+
+| Gain | Effect (intuition) |
+|------|---------------------|
+| **Kp** | Stronger reaction to current error → faster rise; too high → overshoot / oscillation. |
+| **Ki** | Fixes persistent offset (PV stuck below SP); too high → overshoot or slow oscillation. |
+| **Kd** | Dampens fast changes; can reduce overshoot; less critical in this smooth simulation. |
+
+### Plant model (what is being “heated”)
+
+The default plant behaves like a sluggish heater:
+
+- **Inertia** — temperature approaches a target gradually (not a step jump).
+- **Delay** — control action affects temperature only after a few seconds.
+- **Ambient** — system is pulled toward ~20 °C when heating is low.
+
+Defaults (gain 0.8, τ ≈ 30 s, delay 5 s) are a **reasonable teaching example**, not a calibrated model of your specific oven.
+
+### Metrics on the chart
+
+| Metric | Meaning |
+|--------|---------|
+| **Final temperature** | PV at end of run — should be near SP. |
+| **Overshoot** | Peak above SP (%) — lower is often better for delicate processes. |
+| **Steady-state error** | SP − final PV — should be near zero if Ki is adequate. |
+
+### Suggested tuning workflow
+
+1. Set **SP** and **initial temperature** (e.g. 20 → 80 °C step).
+2. Increase **Kp** until the response is reasonably fast without heavy oscillation.
+3. Add **Ki** to remove remaining offset; back off if overshoot grows.
+4. Add **Kd** only if you still need less overshoot.
+5. Compare runs using the plot and metrics.
 
 ## Features
 
-- Temperature control with **Kp**, **Ki**, **Kd** parameters
+- Temperature control with **Kp**, **Ki**, **Kd**
 - Step-response simulation (setpoint vs. actual temperature)
 - Tuning plot (Plotly)
 - Basic metrics: overshoot, steady-state error
