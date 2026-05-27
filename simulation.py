@@ -1,4 +1,4 @@
-"""Symulacja pętli regulacji temperatury."""
+"""Temperature control loop simulation."""
 
 import pandas as pd
 

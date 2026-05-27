@@ -1,4 +1,4 @@
-"""Prosty model obiektu termicznego (pierwszy rząd z opóźnieniem)."""
+"""Simple thermal plant model (first order with delay)."""
 
 
 class ThermalPlant:

@@ -1,19 +1,19 @@
-# PID – strojenie temperatury
+# PID – temperature tuning
 
-Prosta aplikacja w Pythonie (Streamlit) do symulacji i wizualizacji strojenia regulatora PID dla obiektu termicznego.
+A simple Python (Streamlit) app to simulate and visualize PID controller tuning for a thermal process.
 
-## Funkcje
+## Features
 
-- Regulacja temperatury z parametrami **Kp**, **Ki**, **Kd**
-- Symulacja odpowiedzi skokowej (temperatura zadana vs. aktualna)
-- Wykres strojenia (Plotly)
-- Podstawowe metryki: przeregulowanie, błąd ustalony
+- Temperature control with **Kp**, **Ki**, **Kd** parameters
+- Step-response simulation (setpoint vs. actual temperature)
+- Tuning plot (Plotly)
+- Basic metrics: overshoot, steady-state error
 
-## Wymagania
+## Requirements
 
 - Python 3.11+
 
-## Instalacja
+## Installation
 
 ```bash
 python -m venv .venv
@@ -21,24 +21,24 @@ source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-## Uruchomienie
+## Run
 
 ```bash
 streamlit run app.py
 ```
 
-## Struktura projektu
+## Project structure
 
 ```
 .
-├── app.py              # interfejs Streamlit
-├── pid_controller.py   # regulator PID
-├── plant.py            # model obiektu termicznego
-├── simulation.py       # pętla symulacji
+├── app.py              # Streamlit UI
+├── pid_controller.py   # PID controller
+├── plant.py            # thermal plant model
+├── simulation.py       # simulation loop
 ├── requirements.txt
 └── README.md
 ```
 
-## Licencja
+## License
 
 MIT

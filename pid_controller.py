@@ -1,4 +1,4 @@
-"""Regulator PID z ograniczeniem sygnału sterującego i anti-windup."""
+"""PID controller with output clamping and anti-windup."""
 
 
 class PIDController:
