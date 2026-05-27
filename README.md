@@ -1,5 +1,19 @@
 # PID – temperature tuning
 
+## TL;DR
+
+**What it is:** A small web app that **pretends to heat something** (like an oven) and shows whether your PID settings are any good.
+
+**What you do:** Pick a target temperature, move three sliders (**Kp**, **Ki**, **Kd**), click **Run simulation**, and read the graph.
+
+**What you see:** A blue line (actual temperature) chasing a red dashed line (target). Numbers below tell you if you overshot or missed the target at the end.
+
+**Why it exists:** Tuning on real hardware is slow and risky. Here everything is **math in Python** — fast, safe, good for learning and portfolio demos.
+
+**What it is not:** It does not talk to a real sensor or heater. Gains from the app are a **starting point for intuition**, not a factory-ready recipe.
+
+---
+
 A simple Python (Streamlit) app to **simulate and visualize** PID tuning for temperature control. It helps you see how controller gains affect heating behavior **before** touching real hardware.
 
 ## The problem
