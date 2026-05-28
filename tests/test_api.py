@@ -41,3 +41,4 @@ def test_simulate() -> None:
     assert "final_temperature" in metrics
     assert "overshoot_percent" in metrics
     assert "steady_state_error" in metrics
+    assert "settling_time_s" in metrics

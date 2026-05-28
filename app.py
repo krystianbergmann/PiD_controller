@@ -33,7 +33,8 @@ with st.expander("Guide: what is what?", expanded=False):
         **Metrics (below the chart)**  
         - **Final temperature** — PV at the end (should be close to SP)  
         - **Overshoot** — how much PV went *above* SP before settling (%)  
-        - **Steady-state error** — SP minus final PV (should be near 0 with good Ki)
+        - **Steady-state error** — SP minus final PV (should be near 0 with good Ki)  
+        - **Settling time (±2%)** — when PV enters the band around SP and stays there
         """
     )
 
@@ -157,9 +158,13 @@ if "df" in st.session_state:
     sp = float(df["setpoint"].iloc[0])
     m = compute_metrics(df, sp)
 
-    col1, col2, col3 = st.columns(3)
+    settling = m["settling_time_s"]
+    settling_label = f"{settling:.1f} s" if settling is not None else "Not reached"
+
+    col1, col2, col3, col4 = st.columns(4)
     col1.metric("Final temperature", f"{m['final_temperature']:.1f} °C")
     col2.metric("Overshoot", f"{m['overshoot_percent']:.1f} %")
     col3.metric("Steady-state error", f"{m['steady_state_error']:.2f} °C")
+    col4.metric("Settling time (±2%)", settling_label)
 else:
     st.info("Adjust the parameters above and click **Run simulation**.")

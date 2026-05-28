@@ -6,7 +6,7 @@
 
 **What you do:** Pick a target temperature, move three sliders (**Kp**, **Ki**, **Kd**), click **Run simulation**, and read the graph.
 
-**What you see:** A blue line (actual temperature) chasing a red dashed line (target). Numbers below tell you if you overshot or missed the target at the end.
+**What you see:** A blue line (actual temperature) chasing a red dashed line (target). Four metrics below the chart: final temperature, overshoot, steady-state error, and **settling time** (±2% of the step).
 
 **Why it exists:** Tuning on real hardware is slow and risky. Here everything is **math in Python** — fast, safe, good for learning and portfolio demos.
 
@@ -54,7 +54,8 @@ There are many ways to solve “hold this temperature.” This project sits in o
 
 - Simulates a **closed loop**: PID → heater command → thermal model → temperature → back to PID.
 - Lets you set **SP**, initial temperature, **Kp / Ki / Kd**, and simulation length.
-- Plots **PV vs SP** and shows **overshoot** and **steady-state error**.
+- Plots **PV vs SP** and shows **overshoot**, **steady-state error**, and **settling time**.
+- **Streamlit UI** with in-app guide and PID slider hints; parameters in the main panel (not the sidebar).
 
 **Does not:**
 
@@ -89,7 +90,9 @@ Each time step (default **0.5 s**):
 | `pid_controller.py` | PID with output limits and anti-windup (stops integral wind-up when u is saturated). |
 | `plant.py` | Simple thermal model: inertia (first order) + delay, plus ambient temperature. |
 | `simulation.py` | Runs the loop; returns time, temperature, setpoint, control, error. |
-| `app.py` | Streamlit UI, plot, and tuning metrics. |
+| `metrics.py` | Tuning metrics: overshoot, steady-state error, settling time (±2% of step). |
+| `app.py` | Streamlit UI, plot, and metrics display. |
+| `api/main.py` | REST API (`/health`, `/simulate`, `/plant/defaults`) with Swagger at `/docs`. |
 
 ### PID parameters (what to turn)
 
@@ -116,6 +119,7 @@ Defaults (gain 0.8, τ ≈ 30 s, delay 5 s) are a **reasonable teaching example*
 | **Final temperature** | PV at end of run — should be near SP. |
 | **Overshoot** | Peak above SP (%) — lower is often better for delicate processes. |
 | **Steady-state error** | SP − final PV — should be near zero if Ki is adequate. |
+| **Settling time (±2%)** | First time PV stays within ±2% of the step (SP − start) until the end [s]; “Not reached” if the run is too short. |
 
 ### Suggested tuning workflow
 
@@ -123,14 +127,22 @@ Defaults (gain 0.8, τ ≈ 30 s, delay 5 s) are a **reasonable teaching example*
 2. Increase **Kp** until the response is reasonably fast without heavy oscillation.
 3. Add **Ki** to remove remaining offset; back off if overshoot grows.
 4. Add **Kd** only if you still need less overshoot.
-5. Compare runs using the plot and metrics.
+5. Compare runs using the plot and metrics; increase **simulation time** if settling time shows “Not reached”.
+6. Optionally call the same simulation via **POST /simulate** (API) for scripts or automation.
+
+### Settling time (how it is calculated)
+
+**Settling time** is when PV enters a band around SP and **does not leave it** until the end of the run:
+
+- Tolerance = **2% × |SP − initial temperature|** (based on step size, not % of SP alone).
+- If PV is still outside the band at the last sample, the metric is **not reached** (`null` in the API, “Not reached” in the UI).
 
 ## Features
 
 - Temperature control with **Kp**, **Ki**, **Kd**
 - Step-response simulation (setpoint vs. actual temperature)
 - Tuning plot (Plotly)
-- Basic metrics: overshoot, steady-state error
+- Basic metrics: overshoot, steady-state error, settling time
 - REST API with auto-generated **Swagger** documentation
 
 ## Requirements
@@ -208,6 +220,7 @@ Runs one **closed-loop PID simulation**: controller + plant from initial tempera
     - `final_temperature` — PV at the end [°C]
     - `overshoot_percent` — how far PV peaked above SP [%]
     - `steady_state_error` — SP minus final PV [°C] (should be small with good Ki)
+    - `settling_time_s` — settling time [s], or `null` if not settled before `duration` ends
 
 **Example request:**
 
@@ -223,6 +236,8 @@ curl -X POST http://127.0.0.1:8000/simulate \
 pytest tests/ -v
 ```
 
+Covers API smoke tests (`test_api.py`) and metrics logic including settling time (`test_metrics.py`).
+
 ## Project structure
 
 ```
@@ -231,12 +246,13 @@ pytest tests/ -v
 │   ├── main.py         # FastAPI app and routes
 │   └── schemas.py      # Pydantic models (OpenAPI / Swagger)
 ├── app.py              # Streamlit UI
-├── metrics.py          # overshoot, steady-state error
+├── metrics.py          # overshoot, steady-state error, settling time
 ├── pid_controller.py   # PID controller
 ├── plant.py            # thermal plant model
 ├── simulation.py       # simulation loop
 ├── tests/
-│   └── test_api.py
+│   ├── test_api.py
+│   └── test_metrics.py
 ├── requirements.txt
 └── README.md
 ```

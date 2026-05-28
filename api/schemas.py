@@ -41,6 +41,10 @@ class SimulationMetrics(BaseModel):
     final_temperature: float = Field(..., description="PV at end of run [°C]")
     overshoot_percent: float = Field(..., description="Peak above SP [%]")
     steady_state_error: float = Field(..., description="SP minus final PV [°C]")
+    settling_time_s: float | None = Field(
+        ...,
+        description="Time to stay within ±2% of step size of SP [s]; null if not settled",
+    )
 
 
 class SimulationResponse(BaseModel):
