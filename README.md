@@ -2,7 +2,7 @@
 
 ## TL;DR
 
-**What it is:** A small web app that **pretends to heat something** (like an oven) and shows whether your PID settings are any good.
+**What it is:** A small web app that **pretends to heat something** (like an oven) and shows whether your PID settings are any good. A **REST API** with Swagger UI at `/docs` runs the same simulation for scripts and integrations.
 
 **What you do:** Pick a target temperature, move three sliders (**Kp**, **Ki**, **Kd**), click **Run simulation**, and read the graph.
 
@@ -131,6 +131,7 @@ Defaults (gain 0.8, τ ≈ 30 s, delay 5 s) are a **reasonable teaching example*
 - Step-response simulation (setpoint vs. actual temperature)
 - Tuning plot (Plotly)
 - Basic metrics: overshoot, steady-state error
+- REST API with auto-generated **Swagger** documentation
 
 ## Requirements
 
@@ -146,18 +147,96 @@ pip install -r requirements.txt
 
 ## Run
 
+**Streamlit UI:**
+
 ```bash
 streamlit run app.py
+```
+
+**REST API (Swagger at [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)):**
+
+```bash
+uvicorn api.main:app --reload --port 8000
+```
+
+| URL | Description |
+|-----|-------------|
+| `/docs` | Swagger UI (try endpoints in the browser) |
+| `/redoc` | ReDoc API reference |
+| `/openapi.json` | OpenAPI schema |
+
+### API functions (simple reference)
+
+The API runs the **same simulation** as the Streamlit app and returns **JSON** instead of a chart. Use it from scripts, other apps, or the interactive docs at `/docs`.
+
+#### `GET /health`
+
+Checks that the API server is running.
+
+- **Use when:** deploying, monitoring, or verifying the service is up.
+- **Response:** `{"status": "ok"}`
+
+#### `GET /plant/defaults`
+
+Returns the default parameters of the **simulated thermal plant** (the “oven” model).
+
+- **Use when:** you want to know what inertia, delay, and ambient temperature the simulator assumes.
+- **Response fields:**
+  - `gain` — how strongly heater power affects temperature
+  - `time_constant` — how slowly temperature changes [s]
+  - `delay` — lag before control affects temperature [s]
+  - `ambient` — surrounding temperature [°C] (default 20)
+
+#### `POST /simulate`
+
+Runs one **closed-loop PID simulation**: controller + plant from initial temperature toward the setpoint.
+
+- **Use when:** you need the full time series or tuning metrics programmatically.
+- **Request body (JSON):**
+
+| Field | Meaning | Typical value |
+|-------|---------|----------------|
+| `setpoint` | Target temperature SP [°C] | `80` |
+| `initial_temp` | Starting temperature PV [°C] | `20` |
+| `kp`, `ki`, `kd` | PID gains (≥ 0) | `5`, `0.5`, `1` |
+| `duration` | Run length [s], 60–600 | `300` |
+| `dt` | Time step [s] | `0.5` |
+
+- **Response:**
+  - `series` — list of steps, each with `time`, `temperature` (PV), `setpoint` (SP), `control` (heater 0–100%), `error`
+  - `metrics` — summary for tuning:
+    - `final_temperature` — PV at the end [°C]
+    - `overshoot_percent` — how far PV peaked above SP [%]
+    - `steady_state_error` — SP minus final PV [°C] (should be small with good Ki)
+
+**Example request:**
+
+```bash
+curl -X POST http://127.0.0.1:8000/simulate \
+  -H "Content-Type: application/json" \
+  -d '{"setpoint":80,"initial_temp":20,"kp":5,"ki":0.5,"kd":1,"duration":300,"dt":0.5}'
+```
+
+### Tests
+
+```bash
+pytest tests/ -v
 ```
 
 ## Project structure
 
 ```
 .
+├── api/
+│   ├── main.py         # FastAPI app and routes
+│   └── schemas.py      # Pydantic models (OpenAPI / Swagger)
 ├── app.py              # Streamlit UI
+├── metrics.py          # overshoot, steady-state error
 ├── pid_controller.py   # PID controller
 ├── plant.py            # thermal plant model
 ├── simulation.py       # simulation loop
+├── tests/
+│   └── test_api.py
 ├── requirements.txt
 └── README.md
 ```

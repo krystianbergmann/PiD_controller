@@ -3,6 +3,7 @@
 import plotly.graph_objects as go
 import streamlit as st
 
+from metrics import compute_metrics
 from simulation import run_simulation
 
 st.set_page_config(
@@ -24,7 +25,7 @@ with st.expander("Guide: what is what?", expanded=False):
         |------|--------|---------|
         | **Setpoint (SP)** | Parameters → *Setpoint temperature* | Temperature you want to reach |
         | **Process variable (PV)** | Chart → blue line | Actual temperature over time |
-        | **SP on chart** | Chart → red dashed line | Same as setpoint (constant target) |
+        | **SP on chart** | Chart → red dashed line | Same as Ū (constant target) |
         | **Kp, Ki, Kd** | Parameters → PID sliders | How aggressively the heater responds |
         | **Initial temperature** | Parameters | Starting PV before heating (e.g. room temp) |
         | **Simulation time** | Parameters | How many seconds the run lasts |
@@ -154,13 +155,11 @@ if "df" in st.session_state:
     )
 
     sp = float(df["setpoint"].iloc[0])
-    final_temp = df["temperature"].iloc[-1]
-    max_temp = df["temperature"].max()
-    overshoot = max(0.0, (max_temp - sp) / sp * 100) if sp > 0 else 0.0
+    m = compute_metrics(df, sp)
 
     col1, col2, col3 = st.columns(3)
-    col1.metric("Final temperature", f"{final_temp:.1f} °C")
-    col2.metric("Overshoot", f"{overshoot:.1f} %")
-    col3.metric("Steady-state error", f"{sp - final_temp:.2f} °C")
+    col1.metric("Final temperature", f"{m['final_temperature']:.1f} °C")
+    col2.metric("Overshoot", f"{m['overshoot_percent']:.1f} %")
+    col3.metric("Steady-state error", f"{m['steady_state_error']:.2f} °C")
 else:
     st.info("Adjust the parameters above and click **Run simulation**.")
